@@ -1,50 +1,32 @@
 import streamlit as st
-from streamlit_audio_recorder import audio_recorder
 import whisper
 import tempfile
 import os
-from pydub import AudioSegment
 from gtts import gTTS
+from pydub import AudioSegment
 
-# Whisper 모델 불러오기
 model = whisper.load_model("base")
 
-st.title("🎤 Whisper + gTTS: 말하면 읽어주는 AI")
+st.title("🎤 음성 파일 업로드로 STT + gTTS TTS")
 
-# 🎙️ 1. 오디오 녹음
-audio_bytes = audio_recorder(
-    text="눌러서 말하고 다시 눌러서 멈추세요", 
-    recording_color="#e74c3c", 
-    neutral_color="#2ecc71", 
-    icon_name="mic"
-)
+uploaded_file = st.file_uploader("📤 음성 파일을 업로드하세요 (mp3, wav)", type=["mp3", "wav"])
 
-if audio_bytes:
-    # 🔄 2. 녹음된 오디오를 WAV 파일로 저장
-    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_wav:
-        tmp_wav.write(audio_bytes)
-        wav_path = tmp_wav.name
+if uploaded_file:
+    # 업로드 파일 저장
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp_audio:
+        tmp_audio.write(uploaded_file.read())
+        audio_path = tmp_audio.name
 
-    # 🔁 WAV → MP3 (Whisper는 mp3도 됨, gTTS도 mp3)
-    mp3_path = wav_path.replace(".wav", ".mp3")
-    AudioSegment.from_wav(wav_path).export(mp3_path, format="mp3")
+    # Whisper로 음성 → 텍스트
+    result = model.transcribe(audio_path, language="ko")
+    text = result["text"]
+    st.success("✅ 텍스트 변환 완료")
+    st.write(text)
 
-    # 🔍 3. Whisper로 텍스트 변환
-    with st.spinner("🧠 음성을 텍스트로 변환 중..."):
-        result = model.transcribe(mp3_path, language="ko")
-        text = result["text"]
-
-    st.success("✅ 인식 완료!")
-    st.markdown(f"**📝 인식된 문장:** {text}")
-
-    # 🔊 4. gTTS로 텍스트 → 음성 생성
+    # gTTS로 텍스트 → 음성
     tts = gTTS(text=text, lang="ko")
-    tts_path = os.path.join(tempfile.gettempdir(), "tts.mp3")
+    tts_path = os.path.join(tempfile.gettempdir(), "output.mp3")
     tts.save(tts_path)
 
-    # ▶️ 5. 음성 재생
     st.audio(tts_path, format="audio/mp3")
 
-    # 🧹 6. 임시 파일 삭제
-    os.remove(wav_path)
-    os.remove(mp3_path)
