@@ -3,5 +3,5 @@ openai-whisper
 gTTS
 pydub
 soundfile
-streamlit_audio_recorder @ git+https://github.com/stefanrmmr/streamlit_audio_recorder
+
 
